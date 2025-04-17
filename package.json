@@ -15,7 +15,23 @@
     "onLanguage:css"
   ],
   "main": "./out/extension.js",
-  "contributes": {},
+  "contributes": {
+    "commands": [
+      {
+        "command": "tailwind-color-reader.selectColor",
+        "title": "Select Tailwind Color (OKLCH)"
+      }
+    ],
+    "codeActions": [
+      {
+        "languages": [
+          "css"
+        ],
+        "kind": "quickfix",
+        "title": "Change Tailwind Color (OKLCH)"
+      }
+    ]
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",

@@ -53,15 +53,14 @@ function findColorName(l: number, c: number, h: number): string | null {
   return null; // No match found
 }
 
-// Function to parse oklch() functions in a line of text
-function parseOklchFunctions(lineText: string, lineNumber: number): ParsedOklch[] {
+// Function to parse oklch() functions in a range
+function parseOklchFunctionsInRange(document: vscode.TextDocument, range: vscode.Range): ParsedOklch[] {
   const results: ParsedOklch[] = [];
-  // Regex to find oklch(l c h / a) or oklch(l c h)
-  // It captures l, c, h, and optionally alpha (preceded by /)
+  const text = document.getText(range);
   const regex = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/g;
   let match;
 
-  while ((match = regex.exec(lineText)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     const l = parseFloat(match[1]);
     const c = parseFloat(match[2]);
     const h = parseFloat(match[3]);
@@ -76,43 +75,122 @@ function parseOklchFunctions(lineText: string, lineNumber: number): ParsedOklch[
       }
     }
 
-    // Check if parsing was successful
     if (!isNaN(l) && !isNaN(c) && !isNaN(h) && (alpha === undefined || !isNaN(alpha))) {
-      const startPos = match.index;
-      const endPos = startPos + match[0].length;
-      const range = new vscode.Range(
-        new vscode.Position(lineNumber, startPos),
-        new vscode.Position(lineNumber, endPos)
-      );
-      results.push({ l, c, h, alpha, range });
+      const matchStartOffset = match.index;
+      const matchEndOffset = matchStartOffset + match[0].length;
+      const absoluteStartOffset = document.offsetAt(range.start) + matchStartOffset;
+      const absoluteEndOffset = document.offsetAt(range.start) + matchEndOffset;
+      const startPos = document.positionAt(absoluteStartOffset);
+      const endPos = document.positionAt(absoluteEndOffset);
+      const oklchRange = new vscode.Range(startPos, endPos);
+      results.push({ l, c, h, alpha, range: oklchRange });
     }
   }
   return results;
+}
+
+/**
+ * Command handler to show Quick Pick and replace color.
+ */
+async function selectColorHandler(documentUri: vscode.Uri, targetRange: vscode.Range, originalAlpha: number | undefined) {
+  const quickPickItems = colorMap.map(entry => ({
+    label: entry.name,
+    description: `oklch(${entry.oklch.l} ${entry.oklch.c} ${entry.oklch.h})`,
+    entry: entry // Store the original entry for later use
+  }));
+
+  const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+    matchOnDescription: true, // Allow searching in the description (oklch values)
+    placeHolder: 'Select Tailwind color name or search by oklch values'
+  });
+
+  if (selectedItem) {
+    const selectedEntry = selectedItem.entry;
+    let replacementString = `oklch(${selectedEntry.oklch.l} ${selectedEntry.oklch.c} ${selectedEntry.oklch.h}`;
+
+    if (originalAlpha !== undefined) {
+      // Preserve original alpha - format consistently as decimal
+      const alphaValue = originalAlpha.toFixed(3).replace(/\.?0+$/, '');
+      replacementString += ` / ${alphaValue === '0' ? '0' : alphaValue === '1' ? '1' : alphaValue}`;
+    }
+    replacementString += ')';
+
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(documentUri, targetRange, replacementString);
+    await vscode.workspace.applyEdit(edit);
+  }
+}
+
+
+/**
+ * Provides Code Actions (Quick Fixes) for changing OKLCH colors.
+ */
+export class OklchColorActionProvider implements vscode.CodeActionProvider {
+
+  public static readonly providedCodeActionKinds = [
+    vscode.CodeActionKind.QuickFix
+  ];
+
+  provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.ProviderResult<(vscode.Command | vscode.CodeAction)[]> {
+
+    const currentLine = document.lineAt(range.start.line);
+    const parsedColorsOnLine = parseOklchFunctionsInRange(document, currentLine.range);
+    let targetColor: ParsedOklch | null = null;
+
+    for (const parsedColor of parsedColorsOnLine) {
+      if (range instanceof vscode.Selection) {
+        if (parsedColor.range.intersection(range)) { targetColor = parsedColor; break; }
+      } else if (parsedColor.range.contains(range)) {
+        targetColor = parsedColor; break;
+      }
+    }
+
+    if (!targetColor) {
+      return [];
+    }
+
+    // Create a single Code Action that triggers the command
+    const action = new vscode.CodeAction('Change Tailwind Color (OKLCH)...', vscode.CodeActionKind.QuickFix);
+    action.command = {
+      command: 'tailwind-color-reader.selectColor', // Command ID from package.json
+      title: 'Select Tailwind Color',
+      tooltip: 'Opens a searchable list to select a Tailwind color.',
+      arguments: [
+        document.uri,     // Pass document URI
+        targetColor.range, // Pass the range of the oklch() function
+        targetColor.alpha  // Pass the original alpha value
+      ]
+    };
+
+    return [action];
+  }
 }
 
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 
-  console.log('Congratulations, your extension "oklch-hover-extension" is now active!');
+  console.log('Congratulations, your extension "tailwind-color-reader" is now active!');
 
-  // Load the color map when the extension activates
   loadColorMap(context);
 
+  // Register Command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('tailwind-color-reader.selectColor', selectColorHandler)
+  );
+
+  // Register Hover Provider
   let hoverProvider = vscode.languages.registerHoverProvider('css', {
     provideHover(document, position, token) {
       const line = document.lineAt(position.line);
-      const parsedColors = parseOklchFunctions(line.text, position.line);
+      const parsedColors = parseOklchFunctionsInRange(document, line.range);
 
       for (const color of parsedColors) {
-        // Check if the hover position is within the range of this oklch() function
         if (color.range.contains(position)) {
           const colorName = findColorName(color.l, color.c, color.h);
-
           if (colorName) {
             let hoverText = `**${colorName}**`;
             if (color.alpha !== undefined) {
-              // Format alpha as percentage if it's not 1
               const alphaPercentage = Math.round(color.alpha * 100);
               if (alphaPercentage !== 100) {
                 hoverText += ` / ${alphaPercentage}%`;
@@ -121,19 +199,21 @@ export function activate(context: vscode.ExtensionContext) {
             const markdown = new vscode.MarkdownString(hoverText);
             return new vscode.Hover(markdown, color.range);
           } else {
-            // Optional: Provide feedback if values are valid but don't match map
-            // const markdown = new vscode.MarkdownString(`_OKLCH value not found in Tailwind map_`);
-            // return new vscode.Hover(markdown, color.range);
-            return null; // Or return null to show no hover if no match
+            return null;
           }
         }
       }
-
-      return null; // No oklch function found at this position
+      return null;
     }
   });
-
   context.subscriptions.push(hoverProvider);
+
+  // Register Code Action Provider
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider('css', new OklchColorActionProvider(), {
+      providedCodeActionKinds: OklchColorActionProvider.providedCodeActionKinds
+    })
+  );
 }
 
 // This method is called when your extension is deactivated
