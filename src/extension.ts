@@ -533,7 +533,7 @@ export class OklchColorActionProvider implements vscode.CodeActionProvider {
 
     const action = new vscode.CodeAction('Replace with a Tailwind color', vscode.CodeActionKind.QuickFix);
     action.command = {
-      command: 'tailwind-color-reader.selectColor',
+      command: 'shadcn-color-tool.selectColor',
       title: 'Replace with a Tailwind color',
       tooltip: 'Opens a searchable list to select a Tailwind color.',
       arguments: [
@@ -556,13 +556,13 @@ export class OklchColorActionProvider implements vscode.CodeActionProvider {
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
 
-  console.log('Congratulations, your extension "tailwind-color-reader" is now active!');
+  console.log('Congratulations, your extension "shadcn-color-tool" is now active!');
 
   loadColorMap(context);
 
   // Register Command - update signature to accept alphaString
   context.subscriptions.push(
-    vscode.commands.registerCommand('tailwind-color-reader.selectColor',
+    vscode.commands.registerCommand('shadcn-color-tool.selectColor',
       (documentUri: vscode.Uri, targetRangeData: { start: { line: number, character: number }, end: { line: number, character: number } }, originalAlphaString: string | undefined) => {
         const targetRange = new vscode.Range(
           new vscode.Position(targetRangeData.start.line, targetRangeData.start.character),
@@ -613,17 +613,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register the new annotation command
   context.subscriptions.push(
-    vscode.commands.registerCommand('tailwind-color-reader.annotateColors', annotateOklchColorsHandler)
+    vscode.commands.registerCommand('shadcn-color-tool.annotateColors', annotateOklchColorsHandler)
   );
 
   // Register the annotation removal command
   context.subscriptions.push(
-    vscode.commands.registerCommand('tailwind-color-reader.removeColorAnnotations', removeOklchColorAnnotationsHandler)
+    vscode.commands.registerCommand('shadcn-color-tool.removeColorAnnotations', removeOklchColorAnnotationsHandler)
   );
 
   // Register the gray scale conversion command
   context.subscriptions.push(
-    vscode.commands.registerCommand('tailwind-color-reader.convertGrayScale', convertGrayScaleHandler)
+    vscode.commands.registerCommand('shadcn-color-tool.convertGrayScale', convertGrayScaleHandler)
   );
 }
 

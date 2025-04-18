@@ -1,6 +1,6 @@
 {
-  "name": "tailwind-color-reader",
-  "displayName": "Tailwind Color Reader",
+  "name": "shadcn-color-tool",
+  "displayName": "Shadcn Color Tool",
   "description": "Displays Tailwind color names when hovering over oklch() values in CSS.",
   "version": "0.0.1",
   "publisher": "origin-space",
@@ -18,34 +18,34 @@
   "contributes": {
     "commands": [
       {
-        "command": "tailwind-color-reader.selectColor",
-        "title": "Select Tailwind Color (OKLCH)"
+        "command": "shadcn-color-tool.selectColor",
+        "title": "Replace with Tailwind Color"
       },
       {
-        "command": "tailwind-color-reader.annotateColors",
-        "title": "Annotate OKLCH Colors with Tailwind Names"
+        "command": "shadcn-color-tool.annotateColors",
+        "title": "Shadcn Color Tool: Annotate OKLCH Colors with Tailwind Names"
       },
       {
-        "command": "tailwind-color-reader.removeColorAnnotations",
-        "title": "Remove OKLCH Annotations"
+        "command": "shadcn-color-tool.removeColorAnnotations",
+        "title": "Shadcn Color Tool: Remove OKLCH Annotations"
       },
       {
-        "command": "tailwind-color-reader.convertGrayScale",
-        "title": "Change Base Color"
+        "command": "shadcn-color-tool.convertGrayScale",
+        "title": "Shadcn Color Tool: Change Base Color"
       }
     ],
     "menus": {
       "commandPalette": [
         {
-          "command": "tailwind-color-reader.annotateColors",
+          "command": "shadcn-color-tool.annotateColors",
           "when": "editorLangId == css"
         },
         {
-          "command": "tailwind-color-reader.removeColorAnnotations",
+          "command": "shadcn-color-tool.removeColorAnnotations",
           "when": "editorLangId == css"
         },
         {
-          "command": "tailwind-color-reader.convertGrayScale",
+          "command": "shadcn-color-tool.convertGrayScale",
           "when": "editorLangId == css"
         }
       ]
