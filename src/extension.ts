@@ -168,10 +168,10 @@ export class OklchColorActionProvider implements vscode.CodeActionProvider {
             return [];
         }
 
-        const action = new vscode.CodeAction('Select Tailwind Color (OKLCH)...', vscode.CodeActionKind.QuickFix);
+        const action = new vscode.CodeAction('Replace with a Tailwind color', vscode.CodeActionKind.QuickFix);
         action.command = {
             command: 'tailwind-color-reader.selectColor',
-            title: 'Select Tailwind Color',
+            title: 'Replace with a Tailwind color',
             tooltip: 'Opens a searchable list to select a Tailwind color.',
             arguments: [
                 document.uri,
