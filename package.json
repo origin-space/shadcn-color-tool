@@ -4,6 +4,10 @@
   "description": "Displays Tailwind color names when hovering over oklch() values in CSS.",
   "version": "0.0.1",
   "publisher": "origin-space",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/origin-space/shadcn-color-tool"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
