@@ -299,7 +299,7 @@ async function removeOklchColorAnnotationsHandler() {
             vscode.window.showErrorMessage('Failed to remove annotations.');
         }
     } else {
-        vscode.window.showInformationMessage('No OKLCH color annotations found to remove.');
+        vscode.window.showInformationMessage('No OKLCH Annotations found to remove.');
     }
 }
 

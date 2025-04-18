@@ -27,11 +27,11 @@
       },
       {
         "command": "tailwind-color-reader.removeColorAnnotations",
-        "title": "Remove OKLCH Color Annotations"
+        "title": "Remove OKLCH Annotations"
       },
       {
         "command": "tailwind-color-reader.convertGrayScale",
-        "title": "Convert Gray Scale"
+        "title": "Change Base Color"
       }
     ],
     "menus": {
