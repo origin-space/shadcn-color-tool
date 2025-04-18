@@ -3,7 +3,7 @@
   "displayName": "Tailwind Color Reader",
   "description": "Displays Tailwind color names when hovering over oklch() values in CSS.",
   "version": "0.0.1",
-  "publisher": "publisher-name",
+  "publisher": "origin-space",
   "engines": {
     "vscode": "^1.80.0"
   },
