@@ -237,6 +237,13 @@ function parseOklchFunctionsInRange(document: vscode.TextDocument, range: vscode
  */
 // Accept originalAlphaString instead of numeric alpha
 async function selectColorHandler(documentUri: vscode.Uri, targetRange: vscode.Range, originalAlphaString: string | undefined) {
+    // Get the active document to check for existing comments
+    const document = await vscode.workspace.openTextDocument(documentUri);
+    if (!document) {
+        console.error("Could not open document:", documentUri.toString());
+        return; // Should not happen if the command was invoked from a valid context
+    }
+
     const quickPickItems = colorMap.map(entry => ({
         label: entry.name,
         description: `oklch(${entry.oklch.l} ${entry.oklch.c} ${entry.oklch.h})`,
@@ -263,7 +270,34 @@ async function selectColorHandler(documentUri: vscode.Uri, targetRange: vscode.R
             new vscode.Position(targetRange.start.line, targetRange.start.character),
             new vscode.Position(targetRange.end.line, targetRange.end.character)
         );
+
+        // --- Check for and update existing comment ---
+        const line = document.lineAt(targetRange.end.line);
+        const textAfterColor = line.text.substring(targetRange.end.character);
+        const commentMatch = textAfterColor.match(/^(\s*)(\/\*.*?\*\/)/);
+
+        if (commentMatch) {
+            const whitespaceLength = commentMatch[1].length;
+            const commentTextLength = commentMatch[2].length;
+            const commentStartChar = targetRange.end.character + whitespaceLength;
+            const commentEndChar = commentStartChar + commentTextLength;
+
+            const existingCommentRange = new vscode.Range(
+                new vscode.Position(targetRange.end.line, commentStartChar),
+                new vscode.Position(targetRange.end.line, commentEndChar)
+            );
+
+            const newCommentText = `/* ${selectedItem.label} */`; // Use the selected color's name
+
+            // Replace the existing comment text
+            edit.replace(documentUri, existingCommentRange, newCommentText);
+        }
+        // --- End of comment update ---
+
+        // Replace the color value itself
         edit.replace(documentUri, rangeToReplace, replacementString);
+
+        // Apply both edits (color replacement and potential comment replacement)
         await vscode.workspace.applyEdit(edit);
     }
 }
