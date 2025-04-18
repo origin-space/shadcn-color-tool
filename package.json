@@ -28,6 +28,10 @@
       {
         "command": "tailwind-color-reader.removeColorAnnotations",
         "title": "Remove OKLCH Color Annotations"
+      },
+      {
+        "command": "tailwind-color-reader.convertGrayScale",
+        "title": "Convert Gray Scale"
       }
     ],
     "menus": {
@@ -38,6 +42,10 @@
         },
         {
           "command": "tailwind-color-reader.removeColorAnnotations",
+          "when": "editorLangId == css"
+        },
+        {
+          "command": "tailwind-color-reader.convertGrayScale",
           "when": "editorLangId == css"
         }
       ]
