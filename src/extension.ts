@@ -37,6 +37,134 @@ function loadColorMap(context: vscode.ExtensionContext) {
     }
 }
 
+
+/**
+ * Command handler to remove annotations (comments) immediately following OKLCH colors.
+ */
+async function removeOklchColorAnnotationsHandler() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showInformationMessage('No active editor found.');
+        return;
+    }
+
+    const document = editor.document;
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+    const parsedColors = parseOklchFunctionsInRange(document, fullRange);
+
+    if (parsedColors.length === 0) {
+        vscode.window.showInformationMessage('No OKLCH colors found.');
+        return;
+    }
+
+    const edit = new vscode.WorkspaceEdit();
+    let commentsRemovedCount = 0;
+
+    // Process colors in reverse order to avoid range shifts
+    for (let i = parsedColors.length - 1; i >= 0; i--) {
+        const color = parsedColors[i];
+        const line = document.lineAt(color.range.end.line);
+        const textAfterColor = line.text.substring(color.range.end.character);
+
+        // Regex to find a comment starting immediately after the color (allowing for whitespace)
+        const commentMatch = textAfterColor.match(/^(\s*)(\/\*.*?\*\/)/);
+
+        if (commentMatch) {
+            // Calculate the range of the comment including leading whitespace
+            const commentStartIndex = color.range.end.character + commentMatch[1].length; // Start after whitespace
+            const commentEndIndex = commentStartIndex + commentMatch[2].length; // End of the comment text
+            const whitespaceStartIndex = color.range.end.character; // Start of whitespace
+
+            const rangeToDelete = new vscode.Range(
+                new vscode.Position(color.range.end.line, whitespaceStartIndex), // Include leading whitespace
+                new vscode.Position(color.range.end.line, commentEndIndex)
+            );
+
+            edit.delete(document.uri, rangeToDelete);
+            commentsRemovedCount++;
+        }
+    }
+
+    if (commentsRemovedCount > 0) {
+        const success = await vscode.workspace.applyEdit(edit);
+        if (success) {
+            vscode.window.showInformationMessage(`Removed ${commentsRemovedCount} OKLCH color annotation(s).`);
+        } else {
+            vscode.window.showErrorMessage('Failed to remove annotations.');
+        }
+    } else {
+        vscode.window.showInformationMessage('No OKLCH color annotations found to remove.');
+    }
+}
+
+
+
+/**
+ * Command handler to annotate all OKLCH colors in the active editor.
+ */
+async function annotateOklchColorsHandler() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showInformationMessage('No active editor found.');
+        return;
+    }
+
+    const document = editor.document;
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+    const parsedColors = parseOklchFunctionsInRange(document, fullRange);
+
+    if (parsedColors.length === 0) {
+        vscode.window.showInformationMessage('No OKLCH colors found to annotate.');
+        return;
+    }
+
+    const edit = new vscode.WorkspaceEdit();
+
+    // Process colors in reverse order to avoid range shifts
+    for (let i = parsedColors.length - 1; i >= 0; i--) {
+        const color = parsedColors[i];
+        const colorName = findColorName(color.l, color.c, color.h);
+        const commentText = ` /* ${colorName ? colorName : 'Custom'} */`;
+
+        const line = document.lineAt(color.range.end.line);
+        const textAfterColor = line.text.substring(color.range.end.character);
+        const existingCommentMatch = textAfterColor.match(/^\s*(\/\*.*?\*\/)/);
+
+        let positionToInsert = color.range.end;
+        let textToInsert = commentText;
+
+        if (existingCommentMatch) {
+            // If a comment already exists right after, replace it
+            const commentStartIndex = color.range.end.character + textAfterColor.indexOf(existingCommentMatch[1]);
+            const commentEndIndex = commentStartIndex + existingCommentMatch[1].length;
+            const commentRange = new vscode.Range(
+                new vscode.Position(color.range.end.line, commentStartIndex),
+                new vscode.Position(color.range.end.line, commentEndIndex)
+            );
+            // Only replace if the new comment is different
+            if (existingCommentMatch[1] !== commentText.trim()) {
+                 edit.replace(document.uri, commentRange, commentText.trim()); // Use trim to avoid leading space if replacing
+            }
+            // If the comment is the same, skip this color
+            else {
+                continue;
+            }
+
+        } else {
+            // Otherwise, insert the new comment with a leading space
+             edit.insert(document.uri, positionToInsert, textToInsert);
+        }
+    }
+
+    const success = await vscode.workspace.applyEdit(edit);
+    if (success) {
+        vscode.window.showInformationMessage(`Annotated ${parsedColors.length} OKLCH color(s).`);
+    } else {
+        vscode.window.showErrorMessage('Failed to apply annotations.');
+    }
+}
+
+
 // Function to compare floating point numbers with a small tolerance
 function approxEqual(a: number, b: number, epsilon: number = 0.0001): boolean {
     return Math.abs(a - b) < epsilon;
@@ -246,6 +374,16 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerCodeActionsProvider('css', new OklchColorActionProvider(), {
             providedCodeActionKinds: OklchColorActionProvider.providedCodeActionKinds
         })
+    );
+
+    // Register the new annotation command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('tailwind-color-reader.annotateColors', annotateOklchColorsHandler)
+    );
+
+    // Register the annotation removal command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('tailwind-color-reader.removeColorAnnotations', removeOklchColorAnnotationsHandler)
     );
 }
 

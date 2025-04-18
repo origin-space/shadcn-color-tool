@@ -20,8 +20,28 @@
       {
         "command": "tailwind-color-reader.selectColor",
         "title": "Select Tailwind Color (OKLCH)"
+      },
+      {
+        "command": "tailwind-color-reader.annotateColors",
+        "title": "Annotate OKLCH Colors with Tailwind Names"
+      },
+      {
+        "command": "tailwind-color-reader.removeColorAnnotations",
+        "title": "Remove OKLCH Color Annotations"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "tailwind-color-reader.annotateColors",
+          "when": "editorLangId == css"
+        },
+        {
+          "command": "tailwind-color-reader.removeColorAnnotations",
+          "when": "editorLangId == css"
+        }
+      ]
+    },
     "codeActions": [
       {
         "languages": [
