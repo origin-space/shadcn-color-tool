@@ -215,24 +215,33 @@ async function convertGrayScaleHandler() {
     if (targetColorEntry) {
       // 4. Construct replacement strings using helpers
       const replacementOklchString = createOklchString(targetColorEntry, grayInfo.alphaString);
-      const replacementCommentString = createAnnotationComment(targetColorName, grayInfo.alpha); // Pass numeric alpha
+      const replacementCommentString = createAnnotationComment(targetColorName, grayInfo.alpha);
 
-      // 5. Find adjacent comment range
-      const commentInfo = findAdjacentCommentRange(document, grayInfo.range.end);
+      // Get the line where the color is
+      const line = document.lineAt(grayInfo.range.end.line);
+      const lineText = line.text;
 
-      // 6. Add replacements to the edit using helper
-      addReplacementToEdit(
-        edit,
-        document.uri,
-        grayInfo.range,
-        commentInfo, // Pass the result of findAdjacentCommentRange
-        replacementOklchString,
-        replacementCommentString
-      );
+      // Check if there's already a comment on the line
+      const commentMatch = lineText.match(/(\/\*.*?\*\/)/);
+      if (commentMatch) {
+        // Calculate the range of the comment
+        const commentStartIndex = lineText.indexOf(commentMatch[1]);
+        const commentEndIndex = commentStartIndex + commentMatch[1].length;
+
+        const commentRange = new vscode.Range(
+          new vscode.Position(grayInfo.range.end.line, commentStartIndex),
+          new vscode.Position(grayInfo.range.end.line, commentEndIndex)
+        );
+
+        // Replace the existing comment
+        edit.replace(document.uri, commentRange, replacementCommentString);
+      }
+
+      // Replace the color value itself
+      edit.replace(document.uri, grayInfo.range, replacementOklchString);
       convertedCount++;
     } else {
       console.warn(`Could not find target color: ${targetColorName} for original ${grayInfo.originalName}`);
-      // Optionally inform the user about skipped colors
     }
   }
 
@@ -440,67 +449,76 @@ function parseOklchFunctionsInRange(document: vscode.TextDocument, range: vscode
 /**
  * Command handler to show Quick Pick and replace color.
  */
-// Accept originalAlphaString instead of numeric alpha
 async function selectColorHandler(documentUri: vscode.Uri, targetRange: vscode.Range, originalAlphaString: string | undefined) {
-  // Get the active document to check for existing comments
-  const document = await vscode.workspace.openTextDocument(documentUri);
-  if (!document) {
-    console.error("Could not open document:", documentUri.toString());
-    return; // Should not happen if the command was invoked from a valid context
-  }
-
-  const quickPickItems = colorMap.map(entry => ({
-    label: entry.name,
-    description: `oklch(${entry.oklch.l} ${entry.oklch.c} ${entry.oklch.h})`,
-    entry: entry
-  }));
-
-  const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
-    matchOnDescription: true,
-    placeHolder: 'Select Tailwind color name or search by oklch values'
-  });
-
-  if (selectedItem) {
-    const selectedEntry = selectedItem.entry;
-    const edit = new vscode.WorkspaceEdit();
-
-    // Use helper to create the oklch string
-    const replacementOklchString = createOklchString(selectedEntry, originalAlphaString);
-
-    // Parse original alpha for comment generation
-    let originalNumericAlpha: number | undefined = undefined;
-    if (originalAlphaString) {
-      const alphaValueMatch = originalAlphaString.match(/[\d.%]+/);
-      if (alphaValueMatch) {
-        const alphaStrNumeric = alphaValueMatch[0];
-        if (alphaStrNumeric.endsWith('%')) {
-          originalNumericAlpha = parseFloat(alphaStrNumeric.slice(0, -1)) / 100;
-        } else {
-          originalNumericAlpha = parseFloat(alphaStrNumeric);
-        }
-        if (isNaN(originalNumericAlpha)) originalNumericAlpha = undefined; // Handle parsing errors
-      }
+    // Get the active document to check for existing comments
+    const document = await vscode.workspace.openTextDocument(documentUri);
+    if (!document) {
+        console.error("Could not open document:", documentUri.toString());
+        return; // Should not happen if the command was invoked from a valid context
     }
 
-    // Use helper to create the comment string
-    const replacementCommentString = createAnnotationComment(selectedItem.label, originalNumericAlpha);
+    const quickPickItems = colorMap.map(entry => ({
+        label: entry.name,
+        description: `oklch(${entry.oklch.l} ${entry.oklch.c} ${entry.oklch.h})`,
+        entry: entry
+    }));
 
-    // Use helper to find the adjacent comment range
-    const commentInfo = findAdjacentCommentRange(document, targetRange.end);
+    const selectedItem = await vscode.window.showQuickPick(quickPickItems, {
+        matchOnDescription: true,
+        placeHolder: 'Select Tailwind color name or search by oklch values'
+    });
 
-    // Use helper to add replacements to the edit
-    addReplacementToEdit(
-      edit,
-      documentUri,
-      targetRange,
-      commentInfo,
-      replacementOklchString,
-      replacementCommentString
-    );
+    if (selectedItem) {
+        const selectedEntry = selectedItem.entry;
+        const edit = new vscode.WorkspaceEdit();
 
-    // Apply the edit
-    await vscode.workspace.applyEdit(edit);
-  }
+        // Use helper to create the oklch string
+        const replacementOklchString = createOklchString(selectedEntry, originalAlphaString);
+
+        // Parse original alpha for comment generation
+        let originalNumericAlpha: number | undefined = undefined;
+        if (originalAlphaString) {
+            const alphaValueMatch = originalAlphaString.match(/[\d.%]+/);
+            if (alphaValueMatch) {
+                const alphaStrNumeric = alphaValueMatch[0];
+                if (alphaStrNumeric.endsWith('%')) {
+                    originalNumericAlpha = parseFloat(alphaStrNumeric.slice(0, -1)) / 100;
+                } else {
+                    originalNumericAlpha = parseFloat(alphaStrNumeric);
+                }
+                if (isNaN(originalNumericAlpha)) originalNumericAlpha = undefined; // Handle parsing errors
+            }
+        }
+
+        // Use helper to create the comment string
+        const replacementCommentString = createAnnotationComment(selectedItem.label, originalNumericAlpha);
+
+        // Get the line where the color is
+        const line = document.lineAt(targetRange.end.line);
+        const lineText = line.text;
+
+        // Check if there's already a comment on the line
+        const commentMatch = lineText.match(/(\/\*.*?\*\/)/);
+        if (commentMatch) {
+            // Calculate the range of the comment
+            const commentStartIndex = lineText.indexOf(commentMatch[1]);
+            const commentEndIndex = commentStartIndex + commentMatch[1].length;
+
+            const commentRange = new vscode.Range(
+                new vscode.Position(targetRange.end.line, commentStartIndex),
+                new vscode.Position(targetRange.end.line, commentEndIndex)
+            );
+
+            // Replace the existing comment
+            edit.replace(documentUri, commentRange, replacementCommentString);
+        }
+
+        // Replace the color value itself
+        edit.replace(documentUri, targetRange, replacementOklchString);
+
+        // Apply the edit
+        await vscode.workspace.applyEdit(edit);
+    }
 }
 
 
