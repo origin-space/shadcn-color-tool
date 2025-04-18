@@ -124,7 +124,15 @@ async function annotateOklchColorsHandler() {
     for (let i = parsedColors.length - 1; i >= 0; i--) {
         const color = parsedColors[i];
         const colorName = findColorName(color.l, color.c, color.h);
-        const commentText = ` /* ${colorName ? colorName : 'Custom'} */`;
+        let baseCommentText = colorName ? colorName : 'Custom';
+
+        // Add alpha percentage if present and not 100%
+        if (color.alpha !== undefined && !approxEqual(color.alpha, 1.0, 0.001)) {
+             const alphaPercentage = Math.round(color.alpha * 100);
+             baseCommentText += ` / ${alphaPercentage}%`;
+        }
+        const commentText = ` /* ${baseCommentText} */`;
+
 
         const line = document.lineAt(color.range.end.line);
         const textAfterColor = line.text.substring(color.range.end.character);
@@ -152,7 +160,7 @@ async function annotateOklchColorsHandler() {
 
         } else {
             // Otherwise, insert the new comment with a leading space
-             edit.insert(document.uri, positionToInsert, textToInsert);
+            edit.insert(document.uri, positionToInsert, textToInsert);
         }
     }
 
@@ -287,7 +295,29 @@ async function selectColorHandler(documentUri: vscode.Uri, targetRange: vscode.R
                 new vscode.Position(targetRange.end.line, commentEndChar)
             );
 
-            const newCommentText = `/* ${selectedItem.label} */`; // Use the selected color's name
+            let newCommentBaseText = selectedItem.label; // Use the selected color's name
+
+            // --- Add alpha to the new comment if original had alpha ---
+            let originalNumericAlpha: number | undefined = undefined;
+            if (originalAlphaString) {
+                const alphaValueMatch = originalAlphaString.match(/[\d.%]+/);
+                if (alphaValueMatch) {
+                    const alphaStrNumeric = alphaValueMatch[0];
+                    if (alphaStrNumeric.endsWith('%')) {
+                        originalNumericAlpha = parseFloat(alphaStrNumeric.slice(0, -1)) / 100;
+                    } else {
+                        originalNumericAlpha = parseFloat(alphaStrNumeric);
+                    }
+                }
+            }
+
+            if (originalNumericAlpha !== undefined && !approxEqual(originalNumericAlpha, 1.0, 0.001)) {
+                const alphaPercentage = Math.round(originalNumericAlpha * 100);
+                newCommentBaseText += ` / ${alphaPercentage}%`;
+            }
+            // --- End alpha addition ---
+
+            const newCommentText = `/* ${newCommentBaseText} */`;
 
             // Replace the existing comment text
             edit.replace(documentUri, existingCommentRange, newCommentText);
