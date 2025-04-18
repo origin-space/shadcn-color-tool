@@ -119,11 +119,20 @@ function addReplacementToEdit(
     // Replace the color value itself
     edit.replace(docUri, colorRange, newOklch);
 
-    // Replace the existing comment if found
+    // Get the line where the color is
+    const document = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === docUri.toString());
+    if (!document) return;
+
+    const line = document.lineAt(colorRange.end.line);
+    const lineEnd = line.range.end;
+
+    // If there's an existing comment, remove it
     if (commentInfo) {
-        // Important: Replace only the comment text, not the leading whitespace
-        edit.replace(docUri, commentInfo.range, newComment);
+        edit.delete(docUri, commentInfo.whitespaceRange);
     }
+
+    // Add the comment at the end of the line
+    edit.insert(docUri, lineEnd, ` ${newComment}`);
 }
 
 // --- Gray Scale Conversion Logic ---
@@ -270,19 +279,17 @@ async function removeOklchColorAnnotationsHandler() {
     for (let i = parsedColors.length - 1; i >= 0; i--) {
         const color = parsedColors[i];
         const line = document.lineAt(color.range.end.line);
-        const textAfterColor = line.text.substring(color.range.end.character);
+        const lineText = line.text;
 
-        // Regex to find a comment starting immediately after the color (allowing for whitespace)
-        const commentMatch = textAfterColor.match(/^(\s*)(\/\*.*?\*\/)/);
-
+        // Check for comments on the line
+        const commentMatch = lineText.match(/(\/\*.*?\*\/)/);
         if (commentMatch) {
-            // Calculate the range of the comment including leading whitespace
-            const commentStartIndex = color.range.end.character + commentMatch[1].length; // Start after whitespace
-            const commentEndIndex = commentStartIndex + commentMatch[2].length; // End of the comment text
-            const whitespaceStartIndex = color.range.end.character; // Start of whitespace
+            // Calculate the range of the comment
+            const commentStartIndex = lineText.indexOf(commentMatch[1]);
+            const commentEndIndex = commentStartIndex + commentMatch[1].length;
 
             const rangeToDelete = new vscode.Range(
-                new vscode.Position(color.range.end.line, whitespaceStartIndex), // Include leading whitespace
+                new vscode.Position(color.range.end.line, commentStartIndex),
                 new vscode.Position(color.range.end.line, commentEndIndex)
             );
 
@@ -333,23 +340,25 @@ async function annotateOklchColorsHandler() {
         // Use helper to create comment string
         const commentString = createAnnotationComment(colorName ? colorName : 'Custom', color.alpha);
 
-        // Use helper to find existing comment range
-        const commentInfo = findAdjacentCommentRange(document, color.range.end);
+        // Get the line where the color is
+        const line = document.lineAt(color.range.end.line);
+        const lineText = line.text;
 
-        if (commentInfo) {
-            // If a comment already exists right after, replace it if different
-            const existingCommentText = document.getText(commentInfo.range);
-            if (existingCommentText !== commentString) {
-                 edit.replace(document.uri, commentInfo.range, commentString);
-            }
-            // If the comment is the same, skip this color
-            else {
-                continue;
-            }
-        } else {
-            // Otherwise, insert the new comment with a leading space
-             edit.insert(document.uri, color.range.end, ` ${commentString}`); // Add space before inserting
+        // Check if there's already a comment on the line
+        const commentMatch = lineText.match(/(\/\*.*?\*\/)/);
+        if (commentMatch) {
+            // Remove the existing comment
+            const commentStartIndex = lineText.indexOf(commentMatch[1]);
+            const commentEndIndex = commentStartIndex + commentMatch[1].length;
+            const rangeToDelete = new vscode.Range(
+                new vscode.Position(color.range.end.line, commentStartIndex),
+                new vscode.Position(color.range.end.line, commentEndIndex)
+            );
+            edit.delete(document.uri, rangeToDelete);
         }
+
+        // Add the new comment at the end of the line
+        edit.insert(document.uri, line.range.end, ` ${commentString}`);
     }
 
     const success = await vscode.workspace.applyEdit(edit);
