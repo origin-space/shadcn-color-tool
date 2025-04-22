@@ -2,8 +2,8 @@
   "name": "shadcn-color-tool",
   "displayName": "Shadcn Color Tool",
   "description": "Displays Tailwind color names when hovering over oklch() values in CSS.",
-  "version": "0.0.2",
-  "icon": "icon.png",
+  "version": "0.0.3",
+  "icon": "images/icon.png",
   "publisher": "origin-space",
   "repository": {
     "type": "git",

@@ -13,26 +13,33 @@ A Visual Studio Code extension that helps you work with OKLCH colors in your CSS
 
 ## Usage
 
-### Hover Information
+### Tailwind color name preview on hover
+
+![Color preview](images/1.gif)
+
 Simply hover over any `oklch()` color value in your CSS files to see its corresponding Tailwind color name.
 
-### Color Selection
+### Color Annotation
+
+![Adding / removing color annotation](images/2.gif)
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
+2. Type "Shadcn Color Tool: Annotate OKLCH Colors with Tailwind Names" and select the command to add comments
+3. Type "Shadcn Color Tool: Remove OKLCH Colors" and select the command to remove comments
+
+### Quick color replacement
+
+![Quick color replacement](images/3.gif)
+
 1. Place your cursor on an `oklch()` color value
 2. Use the Quick Fix menu (lightbulb icon) or press `Ctrl+.` (Windows/Linux) or `Cmd+.` (Mac)
 3. Select "Replace with a Tailwind color"
 4. Choose your desired color from the searchable list
 
-### Color Annotation
-1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
-2. Type "Shadcn Color Tool: Annotate OKLCH Colors with Tailwind Names" and select the command
-3. All `oklch()` colors in the current file will be annotated with their Tailwind color names
+### Change all gray tones at once
 
-### Remove Annotations
-1. Open the Command Palette
-2. Type "Shadcn Color Tool: Remove OKLCH Annotations" and select the command
-3. All color name annotations will be removed from the current file
+![Change all gray tones at once](images/4.gif)
 
-### Gray Scale Conversion
 1. Open the Command Palette
 2. Type "Shadcn Color Tool: Change Base Color" and select the command
 3. Choose your target gray scale (e.g., Slate, Zinc, etc.)
