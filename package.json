@@ -17,7 +17,8 @@
     "Linters"
   ],
   "activationEvents": [
-    "onLanguage:css"
+    "onLanguage:css",
+    "onLanguage:tailwindcss"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -43,22 +44,23 @@
       "commandPalette": [
         {
           "command": "shadcn-color-tool.annotateColors",
-          "when": "editorLangId == css"
+          "when": "editorLangId == css || editorLangId == tailwindcss"
         },
         {
           "command": "shadcn-color-tool.removeColorAnnotations",
-          "when": "editorLangId == css"
+          "when": "editorLangId == css || editorLangId == tailwindcss"
         },
         {
           "command": "shadcn-color-tool.convertGrayScale",
-          "when": "editorLangId == css"
+          "when": "editorLangId == css || editorLangId == tailwindcss"
         }
       ]
     },
     "codeActions": [
       {
         "languages": [
-          "css"
+          "css",
+          "tailwindcss"
         ],
         "kind": "quickfix",
         "title": "Change Tailwind Color (OKLCH)"
